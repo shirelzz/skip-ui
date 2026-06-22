@@ -86,11 +86,10 @@ public struct LazyVStack : View, Renderable {
                 let scrollToID = ScrollToIDAction(key: listState) { id in
                     if let itemIndex = itemCollector.value.index(for: id) {
                         coroutineScope.launch {
-                            if Animation.isInWithAnimation {
-                                listState.animateScrollToItem(itemIndex)
-                            } else {
-                                listState.scrollToItem(itemIndex)
-                            }
+                            // Programmatic ScrollViewReader.scrollTo should jump instantly;
+                            // animateScrollToItem is far too slow on long lazy lists when
+                            // Animation.isInWithAnimation is true from unrelated transitions.
+                            listState.scrollToItem(itemIndex)
                         }
                     }
                 }
