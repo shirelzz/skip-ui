@@ -285,7 +285,9 @@ public final class List : View, Renderable {
         if let contentMargins = EnvironmentValues.shared._contentMargins?.asComposePaddingValues(for: .automatic) {
             contentPadding = contentPadding.adding(contentMargins)
         }
-        LazyColumn(state: reorderableState.listState, modifier: modifier, contentPadding: contentPadding) {
+        let listRowSpacing = EnvironmentValues.shared._listRowSpacing
+        let listVerticalArrangement = listRowSpacing != nil ? Arrangement.spacedBy(listRowSpacing!.dp) : Arrangement.Top
+        LazyColumn(state: reorderableState.listState, modifier: modifier, contentPadding: contentPadding, verticalArrangement: listVerticalArrangement) {
             // Read move trigger here so that a move will recompose list content
             let _ = moveTrigger.value
             let shouldAnimateItems: @Composable () -> Bool = {
@@ -640,18 +642,21 @@ public final class List : View, Renderable {
         }
         let trailingButtonsRaw: kotlin.collections.List<Button> = trailingButtonsRawMutable
         let leadingButtonsRaw: kotlin.collections.List<Button> = leadingButtonsRawMutable
-        /* iOS reorders .destructive Buttons to the swipe-from edge regardless
-           of the order they were declared in. For trailing swipes that means
-           pinned to the right (last in the Row laid out with Arrangement.End);
-           for leading, pinned to the left (first with Arrangement.Start). The
-           destructive button also becomes the full-swipe target. */
+        /* iOS displays trailing swipe actions in the opposite visual order from
+           their declaration so the first declared action sits on the swipe edge.
+           Leading actions keep declaration order. iOS also reorders .destructive
+           Buttons to the swipe-from edge regardless of declaration order. For
+           trailing swipes that means pinned to the right (last in the Row laid
+           out with Arrangement.End); for leading, pinned to the left (first with
+           Arrangement.Start). The destructive button also becomes the full-swipe
+           target. */
         let trailingDestructive = trailingButtonsRaw.firstOrNull { $0.role == ButtonRole.destructive }
         let trailingNonDestructive = trailingButtonsRaw.filter { $0.role != ButtonRole.destructive }
         let trailingButtons: kotlin.collections.List<Button>
         if let trailingDestructive {
-            trailingButtons = (trailingNonDestructive + listOf(trailingDestructive))
+            trailingButtons = (trailingNonDestructive.reversed() + listOf(trailingDestructive))
         } else {
-            trailingButtons = trailingButtonsRaw
+            trailingButtons = trailingButtonsRaw.reversed()
         }
         let leadingDestructive = leadingButtonsRaw.firstOrNull { $0.role == ButtonRole.destructive }
         let leadingNonDestructive = leadingButtonsRaw.filter { $0.role != ButtonRole.destructive }
@@ -1366,9 +1371,13 @@ extension View {
         return self
     }
 
-    @available(*, unavailable)
-    public func listRowSpacing(_ spacing: CGFloat?) -> some View {
+    // SKIP @bridge
+    public func listRowSpacing(_ spacing: CGFloat?) -> any View {
+        #if SKIP
+        return environment(\._listRowSpacing, spacing, affectsEvaluate: false)
+        #else
         return self
+        #endif
     }
 
     @available(*, unavailable)

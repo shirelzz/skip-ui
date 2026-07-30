@@ -693,6 +693,11 @@ extension EnvironmentValues {
         set { setBuiltinValue(key: "_contentPadding", value: newValue, defaultValue: { EdgeInsets() }) }
     }
 
+    var _textFieldContentPadding: EdgeInsets? {
+        get { builtinValue(key: "_textFieldContentPadding", defaultValue: { nil }) as! EdgeInsets? }
+        set { setBuiltinValue(key: "_textFieldContentPadding", value: newValue, defaultValue: { nil }) }
+    }
+
     var _flexibleHeight: (@Composable (Float?, Float?, Float?) -> Modifier)? {
         get { builtinValue(key: "_flexibleHeight", defaultValue: { nil }) as! (@Composable (Float?, Float?, Float?) -> Modifier)? }
         set { setBuiltinValue(key: "_flexibleHeight", value: newValue, defaultValue: { nil }) }
@@ -782,6 +787,11 @@ extension EnvironmentValues {
     var _contentMargins: ContentMargins? {
         get { builtinValue(key: "_contentMargins", defaultValue: { nil }) as! ContentMargins? }
         set { setBuiltinValue(key: "_contentMargins", value: newValue, defaultValue: { nil }) }
+    }
+
+    var _listRowSpacing: CGFloat? {
+        get { builtinValue(key: "_listRowSpacing", defaultValue: { nil }) as! CGFloat? }
+        set { setBuiltinValue(key: "_listRowSpacing", value: newValue, defaultValue: { nil }) }
     }
 
     /// Allow users to revert to previous layout behavior.
