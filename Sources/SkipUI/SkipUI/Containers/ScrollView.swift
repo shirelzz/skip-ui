@@ -58,8 +58,19 @@ public struct ScrollView : View, Renderable {
         let scrollState = rememberScrollState()
         let coroutineScope = rememberCoroutineScope()
         let isScrollDisabled = EnvironmentValues.shared._scrollDisabled
-        let wantsVerticalScroll = axes.contains(.vertical) && !builtinScrollAxisSet.value.reduced.contains(Axis.Set.vertical)
-        let wantsHorizontalScroll = axes.contains(.horizontal) && !builtinScrollAxisSet.value.reduced.contains(Axis.Set.horizontal)
+        // After activity recreation / state reset the in-memory map backing `ComposeStateSaver`
+        // can be lost, so `rememberSaveable` restores nil and reading `.reduced` on nil crashes
+        // (skip-ui #300/#418). Guard the read WITHOUT writing `builtinScrollAxisSet.value` back —
+        // writing preference state during composition caused the #440 infinite recomposition that
+        // got the original fix reverted (PR #441). Nil falls back to the key default (empty set).
+        let reducedBuiltinScrollAxisSet: Axis.Set
+        if (builtinScrollAxisSet.value as Any?) == nil {
+            reducedBuiltinScrollAxisSet = []
+        } else {
+            reducedBuiltinScrollAxisSet = builtinScrollAxisSet.value.reduced
+        }
+        let wantsVerticalScroll = axes.contains(.vertical) && !reducedBuiltinScrollAxisSet.contains(Axis.Set.vertical)
+        let wantsHorizontalScroll = axes.contains(.horizontal) && !reducedBuiltinScrollAxisSet.contains(Axis.Set.horizontal)
         var scrollModifier: Modifier = Modifier
         var effectiveScrollAxes: Axis.Set = []
         if wantsVerticalScroll {
@@ -191,7 +202,15 @@ public struct ScrollViewReader : View, Renderable {
     @Composable override func Render(context: ComposeContext) {
         let scrollToID = rememberSaveable(stateSaver: context.stateSaver as! Saver<Preference<ScrollToIDAction>, Any>) { mutableStateOf(Preference<ScrollToIDAction>(key: ScrollToIDPreferenceKey.self)) }
         let scrollToIDCollector = PreferenceCollector<ScrollToIDAction>(key: ScrollToIDPreferenceKey.self, state: scrollToID)
-        let scrollProxy = ScrollViewProxy(scrollToID: scrollToID.value.reduced.action)
+        // Same nil-on-state-reset guard as above (skip-ui #300/#418/#441): read-only, no write-back.
+        // Nil falls back to the key default (a no-op scroll action).
+        let reducedScrollToID: ScrollToIDAction
+        if (scrollToID.value as Any?) == nil {
+            reducedScrollToID = ScrollToIDPreferenceKey.defaultValue
+        } else {
+            reducedScrollToID = scrollToID.value.reduced
+        }
+        let scrollProxy = ScrollViewProxy(scrollToID: reducedScrollToID.action)
         PreferenceValues.shared.collectPreferences([scrollToIDCollector]) {
             content(scrollProxy).Compose(context)
         }
