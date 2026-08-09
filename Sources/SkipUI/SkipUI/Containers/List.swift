@@ -797,7 +797,7 @@ public final class List : View, Renderable {
             let leadingCount = Float(leadingButtons.size)
             let trailingCount = Float(trailingButtons.size)
 
-            if leadingButtons.size > 0 && curOffset >= Float(0) {
+            if leadingButtons.size > 0 && curOffset > Float(0) {
                 Box(modifier: Modifier.matchParentSize(), contentAlignment: androidx.compose.ui.Alignment.CenterStart) {
                     if leadingUseStretch {
                         let rowWidthDp = with(density) { revealedLeadingPx.toDp() }
@@ -840,7 +840,7 @@ public final class List : View, Renderable {
                     }
                 }
             }
-            if trailingButtons.size > 0 && curOffset <= Float(0) {
+            if trailingButtons.size > 0 && curOffset < Float(0) {
                 Box(modifier: Modifier.matchParentSize(), contentAlignment: androidx.compose.ui.Alignment.CenterEnd) {
                     if trailingUseStretch {
                         let rowWidthDp = with(density) { revealedTrailingPx.toDp() }
