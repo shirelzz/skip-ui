@@ -8,6 +8,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsDraggedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
@@ -131,10 +132,16 @@ public struct TabView : View, Renderable {
         let coroutineScope = rememberCoroutineScope()
         let isSyncingToSelection = remember { mutableStateOf(false) }
         let pagerState = rememberPagerState(pageCount: { tabRenderables.size })
+        // Only a drag means the user paged. Deliberately not remembered across a recreation of
+        // this content: a pager that comes back has not been paged by anyone yet
+        let didUserPage = remember { mutableStateOf(false) }
+        if pagerState.interactionSource.collectIsDraggedAsState().value {
+            didUserPage.value = true
+        }
         ComposeContainer(modifier: context.modifier, fillWidth: true) { modifier in
             Box(modifier: modifier) {
                 syncPagerStateToSelection(pagerState, tags: tags, isSyncingToSelection: isSyncingToSelection, coroutineScope: coroutineScope)
-                RenderPageViewPager(pagerState: pagerState, tabRenderables: tabRenderables, tags: tags, isSyncingToSelection: isSyncingToSelection, context: contentContext)
+                RenderPageViewPager(pagerState: pagerState, tabRenderables: tabRenderables, tags: tags, isSyncingToSelection: isSyncingToSelection, didUserPage: didUserPage, context: contentContext)
                 if indexDisplayMode == .always || (indexDisplayMode == .automatic && tabRenderables.size > 1) {
                     let modifier = Modifier
                         .wrapContentHeight()
@@ -147,7 +154,7 @@ public struct TabView : View, Renderable {
         }
     }
 
-    @Composable private func RenderPageViewPager(pagerState: PagerState, tabRenderables: kotlin.collections.List<Renderable>, tags: kotlin.collections.List<Any?>, isSyncingToSelection: MutableState<Bool>, context: ComposeContext) {
+    @Composable private func RenderPageViewPager(pagerState: PagerState, tabRenderables: kotlin.collections.List<Renderable>, tags: kotlin.collections.List<Any?>, isSyncingToSelection: MutableState<Bool>, didUserPage: MutableState<Bool>, context: ComposeContext) {
         HorizontalPager(state: pagerState, modifier: Modifier.fillMaxSize()) { page in
             if page >= 0 && page < tabRenderables.size {
                 Box(modifier: Modifier.fillMaxSize(), contentAlignment: androidx.compose.ui.Alignment.Center) {
@@ -155,7 +162,7 @@ public struct TabView : View, Renderable {
                 }
                 // We don't get a callback when the user scrolls the pager, so use the rendering callback to sync any
                 // user-initiated navigation to the selection binding
-                syncSelectionToPagerState(pagerState, tags: tags, isSyncingToSelection: isSyncingToSelection)
+                syncSelectionToPagerState(pagerState, tags: tags, isSyncingToSelection: isSyncingToSelection, didUserPage: didUserPage)
             }
         }
     }
@@ -190,11 +197,18 @@ public struct TabView : View, Renderable {
         }
     }
 
-    @Composable private func syncSelectionToPagerState(_ pagerState: PagerState, tags: kotlin.collections.List<Any?>, isSyncingToSelection: MutableState<Bool>) {
+    @Composable private func syncSelectionToPagerState(_ pagerState: PagerState, tags: kotlin.collections.List<Any?>, isSyncingToSelection: MutableState<Bool>, didUserPage: MutableState<Bool>) {
         // Don't confuse our own programmatic scrolling with user scrolling
         guard !isSyncingToSelection.value else {
             return
         }
+        // Report only a page the user dragged to, once it has settled. A pager that is still
+        // catching up with a programmatic selection change, or that has just been recomposed or
+        // recreated, otherwise writes its own stale page back and cancels that change
+        guard didUserPage.value, !pagerState.isScrollInProgress else {
+            return
+        }
+        didUserPage.value = false
         guard pagerState.targetPage >= 0 && pagerState.targetPage < tags.size else {
             return
         }
