@@ -108,12 +108,9 @@ public final class EnvironmentValues {
         }.toTypedArray()
         lastSetValues.clear()
 
-        // Note: this is an adaptation of the standard `CompositionLocalProvider(*provided)` function modified to return a value.
-        // This uses internal API
-        currentComposer.startProviders(provided)
-        let ret = content()
-        currentComposer.endProviders()
-        return ret
+        // Returning evaluation shares its caller's restart scope. Track which values it
+        // provides so bridged reads can avoid subscribing that scope to its own writes.
+        return WithReturningEnvironmentValues(provided, content: content)
     }
 
     // On set we populate our `lastSetValues` map, which our `setValues` function reads from and then clears after
@@ -131,7 +128,7 @@ public final class EnvironmentValues {
             return builtinValue
         }
         let compositionLocal = bridgedCompositionLocal(key: key)
-        let value = compositionLocal.current
+        let value = ReadBridgedEnvironmentValue(compositionLocal)
         return value == Unit ? nil : value as! EnvironmentSupport
     }
 
@@ -742,6 +739,11 @@ extension EnvironmentValues {
     var _isSearching: MutableState<Bool>? {
         get { builtinValue(key: "_isSearching", defaultValue: { nil }) as! MutableState<Bool>? }
         set { setBuiltinValue(key: "_isSearching", value: newValue, defaultValue: { nil }) }
+    }
+
+    var _listItemTextInputFocused: MutableState<Bool>? {
+        get { builtinValue(key: "_listItemTextInputFocused", defaultValue: { nil }) as! MutableState<Bool>? }
+        set { setBuiltinValue(key: "_listItemTextInputFocused", value: newValue, defaultValue: { nil }) }
     }
 
     var _keyboardOptions: KeyboardOptions? {
