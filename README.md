@@ -1481,6 +1481,18 @@ Support levels:
       <td><code>.alert</code></td>
     </tr>
     <tr>
+      <td>🟡</td>
+      <td>
+          <details>
+              <summary><code>.alignmentGuide</code></summary>
+              <ul>
+                  <li>Supports <code>.listRowSeparatorLeading</code> and <code>.listRowSeparatorTrailing</code> only</li>
+                  <li>See <a href="#list-row-separator-alignment">List Row Separator Alignment</a></li>
+              </ul>
+          </details>
+      </td>
+    </tr>
+    <tr>
       <td>✅</td>
       <td><code>.allowsHitTesting</code></td>
     </tr>
@@ -2575,6 +2587,7 @@ Support levels:
                   <li><code>var delegate: (any UNUserNotificationCenterDelegate)?</code></li>
                   <li><code>func add(_ request: UNNotificationRequest) async throws</code></li>
                   <li>The `add` function ignores all repeat options and and simply delivers the notification either immediately or after the next trigger date is reached.</li>
+                  <li>As on iOS, adding a request replaces the pending request with the same identifier.</li>
                   <li><code>func pendingNotificationRequests() async -> [UNNotificationRequest]</code></li>
                   <li><code>func removePendingNotificationRequests(withIdentifiers identifiers: [String])</code></li>
                   <li><code>func removeAllPendingNotificationRequests()</code></li>
@@ -3188,6 +3201,24 @@ List($people, id: \.fullName, editActions: .all) { $person in
 
 You can also enable editing by using a `ForEach` with the `.onDelete` and `.onMove` modifiers. Make sure your `ForEach` also supplies an `id` for each item.
 
+#### List Row Separator Alignment
+
+Use SwiftUI's horizontal separator guides to customize a list row's separator:
+
+```swift
+Text("Title")
+    .alignmentGuide(.listRowSeparatorLeading) { dimensions in
+        dimensions[.leading] + 12
+    }
+    .alignmentGuide(.listRowSeparatorTrailing) { dimensions in
+        dimensions[.trailing] - 12
+    }
+```
+
+The closure receives the modified view's measured width and height in points. `ViewDimensions` supports `.leading`, `.center`, `.trailing`, and the two separator guides. Positions are relative to the view's leading edge and mirror in right-to-left layouts. Guides on nested row content propagate through layout containers, so a guide on a label beside an icon can align the separator with that label. Modifier order matters: padding outside a guide shifts its position with the content.
+
+Rows without explicit guides retain their existing separator insets. These guides only position separators; they do not change row content placement or separator visibility. Other alignment guides, custom `AlignmentID`s, baseline guides, and explicit-guide subscripts are not currently supported.
+
 #### List Limitations
 
 - Compose requires that every `id` value in a `List` is unique. This applies even if your list consists of multiple `Sections` or uses multiple `ForEach` components to define its content.
@@ -3390,6 +3421,28 @@ struct CustomNavigationAnimationSpecModifier : ContentModifier {
 #endif
 ```
 #### Modals
+
+Fixed `.height(...)` presentation detents describe usable content height; the bottom system-bar
+inset is added separately, and oversized heights are capped at the large-sheet boundary. For
+content-sized sheets, measure the natural content height and provide a single height detent.
+Android currently selects only one entry from a set of detents rather than supporting resizing
+between multiple detents.
+
+Android supports the **Color-only** form of `.presentationBackground(_:)`, including clear and
+partially opaque colors. Apply it directly to the root view returned by the `.sheet` or
+`.fullScreenCover` content closure:
+
+```swift
+SomeContentView()
+    .sheet(isPresented: $isSheetPresented) {
+        SheetContentView()
+            .presentationBackground(Color.clear)
+    }
+```
+
+`Color.clear` reveals the presenting view wherever the sheet content is transparent. Other shape
+styles, such as materials and gradients, and custom background views remain unsupported. The
+default background is unchanged when the modifier is absent.
 
 Skip supports standard modal presentations. Android apps typically allow users to dismiss modals with the Android back button. Skip allows you to selectively disable this behavior with the Android-only `backDismissDisabled(_ isDisabled: Bool = true)` SwiftUI modifier. If you use this modifier, you **must** put it on the top-level view embedded in your `.sheet` or `.fullScreenCover`, as in the following example:
 

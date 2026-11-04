@@ -47,6 +47,7 @@ import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.Measurable
 import androidx.compose.ui.layout.Placeable
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -539,15 +540,27 @@ extension View {
         // Fix an axis to the content's ideal size by measuring it unbounded on that axis, mirroring
         // SwiftUI's fixedSize (the view is proposed its ideal size and won't be compressed/truncated).
         // A non-fixed axis is left untouched so the flexible-width layout system still governs it.
-        return ModifiedContent(content: self, modifier: RenderModifier { context in
-            var modifier = context.modifier
+        // The content is rendered without the parent's flexible layout on a fixed axis, so it does not
+        // report itself as filling and the parent stack gives its free space to other children instead.
+        return ModifiedContent(content: self, modifier: RenderModifier { renderable, context in
+            var context = context
             if horizontal {
-                modifier = modifier.wrapContentWidth(unbounded: true)
+                context.modifier = context.modifier.wrapContentWidth(unbounded: true)
             }
             if vertical {
-                modifier = modifier.wrapContentHeight(unbounded: true)
+                context.modifier = context.modifier.wrapContentHeight(unbounded: true)
             }
-            return modifier
+            EnvironmentValues.shared.setValues {
+                if horizontal {
+                    $0.set_flexibleWidth(nil)
+                }
+                if vertical {
+                    $0.set_flexibleHeight(nil)
+                }
+                return ComposeResult.ok
+            } in: {
+                renderable.Render(context: context)
+            }
         })
         #else
         return self
@@ -1008,13 +1021,13 @@ extension View {
     public func onGeometryChangeErased<T>(of transform: @escaping (GeometryProxy) -> T, action: @escaping (_ oldValue: T, _ newValue: T) -> Void) -> any View {
         #if SKIP
         return ModifiedContent(content: self, modifier: RenderModifier { renderable, context in
-            let globalFramePx = remember { mutableStateOf<Rect?>(nil) }
+            let geometry = remember { GeometryReaderState() }
             let storage = remember { GeometryChangeValueStorage() }
             let density = LocalDensity.current
             let safeArea = EnvironmentValues.shared._safeArea
 
-            if let rect = globalFramePx.value {
-                let proxy = GeometryProxy(globalFramePx: rect, density: density, safeArea: safeArea)
+            if geometry.isPositioned {
+                let proxy = GeometryProxy(sizePx: geometry.sizePx, globalFramePx: geometry.globalFramePx, density: density, safeArea: safeArea)
                 let newValue = transform(proxy)
                 let oldValue = storage.previousValue as? T
                 if oldValue == nil || oldValue != newValue {
@@ -1025,8 +1038,8 @@ extension View {
             }
 
             var updatedContext = context
-            updatedContext.modifier = context.modifier.onGloballyPositionedInRoot { rect in
-                globalFramePx.value = rect
+            updatedContext.modifier = context.modifier.onGloballyPositioned {
+                geometry.update(size: $0.size, frame: $0.boundsInRoot())
             }
             renderable.Render(context: updatedContext)
         })
@@ -1891,7 +1904,8 @@ final class AndroidVerticalOverscrollPullDownConnection: NestedScrollConnection 
         return Offset(x: Float(0.0), y: available.y)
     }
 
-    override func onPostFling(consumed: Velocity, available: Velocity) async -> Velocity {
+    // Keep pull state and callbacks on the UI thread when this async override is transpiled.
+    @MainActor override func onPostFling(consumed: Velocity, available: Velocity) async -> Velocity {
         guard accumulatedPullPx > Float(0.0) else {
             return Velocity.Zero
         }
