@@ -1,5 +1,4 @@
 // Copyright 2023–2026 Skip
-// SPDX-License-Identifier: MPL-2.0
 #if !SKIP_BRIDGE
 import Foundation
 #if SKIP
@@ -66,11 +65,15 @@ public struct Text: View, Renderable, Equatable {
     }
 
     public init(_ attributedContent: AttributedString) {
+        #if SKIP
+        self.init(attributedRuns: AttributedTextRun.runs(from: attributedContent))
+        #else
         textView = _Text(attributedString: attributedContent)
         modifiedView = textView
+        #endif
     }
 
-    /// Render attributed segments produced by native Swift without reparsing their text.
+    /// Render attributed segments without reparsing their text.
     // SKIP @bridge
     public init(attributedRuns: [AttributedTextRun]) {
         let runs = attributedRuns.map { run in

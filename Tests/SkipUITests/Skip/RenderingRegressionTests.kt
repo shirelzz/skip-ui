@@ -1,5 +1,4 @@
 // Copyright 2026 Skip
-// SPDX-License-Identifier: MPL-2.0
 package skip.ui
 
 import androidx.activity.ComponentActivity
@@ -287,6 +286,21 @@ class RenderingRegressionTests {
         }
         rule.onNodeWithTag("boundary").assertWidthIsEqualTo(20.dp)
         rule.onNodeWithTag("boundary").assertHeightIsEqualTo(20.dp)
+    }
+
+    @Test fun boundaryPassesMinimumConstraintsToContent() {
+        rule.setContent {
+            val parent = rememberCompositionContext()
+            Box(Modifier.size(200.dp), propagateMinConstraints = true) {
+                AndroidView(factory = { context ->
+                    AndroidCompositionBoundaryComposeView(context, parent) {
+                        Box(Modifier.testTag("constrained-child"))
+                    }
+                })
+            }
+        }
+        rule.onNodeWithTag("constrained-child").assertWidthIsEqualTo(200.dp)
+        rule.onNodeWithTag("constrained-child").assertHeightIsEqualTo(200.dp)
     }
 
     @Test fun nestedForEachRetainsInnerRowStateInZStack() {

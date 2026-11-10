@@ -1327,6 +1327,7 @@ Support levels:
               <summary><code>Text</code> (<a href="https://skip.dev/docs/components/text/">example</a>)</summary>
               <ul>
                   <li><code>Text(...) + Text(...)</code> is not supported</li>
+                  <li>Editable <code>Text(AttributedString)</code> supports fonts, foreground colors, links, single solid underlines and strikethroughs, baseline offsets, and inline Markdown intents. See <a href="#editable-attributed-text">Editable attributed text</a>.</li>
                   <li>For formatters, only <code>Text.DateStyle.date</code> and <code>Text.DateStyle.time</code> are supported</li>
               </ul>
           </details>      
@@ -3721,7 +3722,47 @@ Still other modifiers don't affect rendering at all, but perform side effects or
 
 Like other SwiftUI components, modifiers use `#if SKIP ... #else ...` to stub the Swift implementation and keep SkipUI buildable in Xcode.
 
-## License
+## Editable attributed text
 
-This software is licensed under the 
-[Mozilla Public License 2.0](https://www.mozilla.org/MPL/).
+With the matching SkipFoundation editable-attributed-string support, Lite code
+can use the same range-editing syntax as SwiftUI:
+
+```swift
+var text = AttributedString("Hello world")
+if let range = text.range(of: "world") {
+    text[range].font = .headline
+    text[range].foregroundColor = .orange
+    text[range].underlineStyle = .single
+}
+Text(text)
+```
+
+The same properties are available on `AttributeContainer` and readable on runs.
+`Text` snapshots the current attributes into the shared run renderer, including
+edits made after Markdown parsing. Fonts, foreground colors, links, baseline
+offsets, and the supported inline presentation intents are rendered. Underline
+and strikethrough values currently render as single solid lines; their pattern
+and color options are not rendered.
+
+Case-insensitive search ranges can be highlighted using the same API on both platforms:
+
+```swift
+var text = AttributedString("Search highlighting in Skip")
+if let range = text.range(of: "skip", options: .caseInsensitive) {
+    text[range].foregroundColor = .accentColor
+}
+Text(text)
+```
+
+SkipFoundation performs the search using Android ICU and returns a range in the
+original text. See its README for supported search options and platform differences.
+
+Infer ranges from `range(of:)` or `runs`. Lite does not implement generic attribute
+scopes or explicit `Range<AttributedString.Index>` slicing. See SkipFoundation's
+editable attributed strings documentation for the supported subset.
+
+This requires SkipFoundation 1.4.9 or later for editable attributed strings and
+ICU search, merged in
+[SkipFoundation PR #143](https://github.com/skiptools/skip-foundation/pull/143).
+The package declares this minimum release requirement. No fork or local dependency
+is required.
