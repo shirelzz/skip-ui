@@ -4,6 +4,7 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -36,8 +37,9 @@ class ContextMenuModifier: RenderModifier {
     let nestedMenu = remember { mutableStateOf<Menu?>(nil) }
     let coroutineScope = rememberCoroutineScope()
     let contentContext = context.content()
-    let primaryMenuItems = menuItems.Evaluate(context: contentContext, options: 0).filter { !$0.isSwiftUIEmptyView }
-    let isContextMenuEnabled = EnvironmentValues.shared.isEnabled && EnvironmentValues.shared._isHitTestingEnabled && primaryMenuItems.size > 0
+    // Menu items are evaluated only while the menu is open (see the DropdownMenu content below), as on iOS.
+    // Evaluating them here would build every row's menu content on each composition of a scrolling list
+    let isContextMenuEnabled = EnvironmentValues.shared.isEnabled && EnvironmentValues.shared._isHitTestingEnabled
     let replaceMenu: (Menu?) -> Void = { menu in
         coroutineScope.launch {
             delay(200)
@@ -105,8 +107,14 @@ class ContextMenuModifier: RenderModifier {
                     $0.set_placement(placement)
                     return ComposeResult.ok
                 } in: {
-                    let renderables = nestedMenu.value?.content.Evaluate(context: contentContext, options: 0) ?? primaryMenuItems
-                    Menu.RenderDropdownMenuItems(for: renderables, context: contentContext, replaceMenu: replaceMenu)
+                    let renderables = (nestedMenu.value?.content ?? menuItems).Evaluate(context: contentContext, options: 0).filter { !$0.isSwiftUIEmptyView }
+                    if renderables.isEmpty() {
+                        LaunchedEffect(true) {
+                            isMenuExpanded.value = false
+                        }
+                    } else {
+                        Menu.RenderDropdownMenuItems(for: renderables, context: contentContext, replaceMenu: replaceMenu)
+                    }
                 }
             }
         }
