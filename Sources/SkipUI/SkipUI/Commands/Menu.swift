@@ -155,7 +155,7 @@ public final class Menu : View, Renderable {
         return toggleMenu
     }
 
-    @Composable static func RenderDropdownMenuItems(for renderables: kotlin.collections.List<Renderable>, selection: Hashable? = nil, context: ComposeContext, replaceMenu: (Menu?) -> Void) {
+    @Composable static func RenderDropdownMenuItems(for renderables: kotlin.collections.List<Renderable>, selection: Hashable? = nil, isSelectable: Bool = false, context: ComposeContext, replaceMenu: (Menu?) -> Void) {
         for renderable in renderables {
             var stripped = renderable.strip()
             if let shareLink = stripped as? ShareLink {
@@ -173,7 +173,8 @@ public final class Menu : View, Renderable {
             let isItemEnabled = !isDisabled(renderable)
             if let button = stripped as? Button {
                 let isSelected: Bool?
-                if let tagModifier = TagModifier.on(content: renderable, role: .tag) {
+                // Only pickers show a selection; `ForEach` tags its items, so a tag alone would reserve an empty checkmark slot
+                if isSelectable, let tagModifier = TagModifier.on(content: renderable, role: .tag) {
                     isSelected = tagModifier.value == selection
                 } else {
                     isSelected = nil
