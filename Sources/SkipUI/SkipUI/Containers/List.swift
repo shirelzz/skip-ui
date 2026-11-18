@@ -41,6 +41,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.ExperimentalMaterialApi
 import androidx.compose.material.pullrefresh.PullRefreshIndicator
@@ -382,6 +383,7 @@ public final class List : View, Renderable {
                         Self.RenderItemAnimation(
                             cornerRadius: styling.cornerRadius,
                             forceUnanimatedItems: forceUnanimatedItems,
+                            listState: reorderableState.listState,
                             isFirstInSection: styling.style != .plain && itemCollector.value.isFirstInSection(itemIndex),
                             isLastInSection: styling.style != .plain && itemCollector.value.isLastInSection(itemIndex),
                             suppressAnimation: suppressTextInputAnimation,
@@ -411,6 +413,7 @@ public final class List : View, Renderable {
                         Self.RenderItemAnimation(
                             cornerRadius: styling.cornerRadius,
                             forceUnanimatedItems: forceUnanimatedItems,
+                            listState: reorderableState.listState,
                             isDragging: keyValue != nil && reorderableState.draggingItemKey == keyValue,
                             isFirstInSection: styling.style != .plain && itemCollector.value.isFirstInSection(startItemIndex + offset + index),
                             isLastInSection: styling.style != .plain && itemCollector.value.isLastInSection(startItemIndex + offset + index),
@@ -440,6 +443,7 @@ public final class List : View, Renderable {
                         Self.RenderItemAnimation(
                             cornerRadius: styling.cornerRadius,
                             forceUnanimatedItems: forceUnanimatedItems,
+                            listState: reorderableState.listState,
                             isDragging: reorderableState.draggingItemKey == keyValue,
                             isFirstInSection: styling.style != .plain && itemCollector.value.isFirstInSection(startItemIndex + offset + index),
                             isLastInSection: styling.style != .plain && itemCollector.value.isLastInSection(startItemIndex + offset + index),
@@ -469,6 +473,7 @@ public final class List : View, Renderable {
                         Self.RenderItemAnimation(
                             cornerRadius: styling.cornerRadius,
                             forceUnanimatedItems: forceUnanimatedItems,
+                            listState: reorderableState.listState,
                             isDragging: reorderableState.draggingItemKey == keyValue,
                             isFirstInSection: styling.style != .plain && itemCollector.value.isFirstInSection(startItemIndex + offset + index),
                             isLastInSection: styling.style != .plain && itemCollector.value.isLastInSection(startItemIndex + offset + index),
@@ -604,6 +609,8 @@ public final class List : View, Renderable {
     /// - Parameters:
     ///   - cornerRadius: The radius of the section’s outer corners.
     ///   - forceUnanimatedItems: Whether the current update suppresses placement animations.
+    ///   - listState: Suppresses placement animations while scrolling. Rows re-entering the viewport
+    ///     can otherwise animate in from a stale position, so the whole list drops and slides back.
     ///   - isDragging: Whether the row is currently being dragged.
     ///   - isFirstInSection: Clips the first row's top corners together with its background.
     ///   - isLastInSection: Clips the final row's bottom corners together with its background.
@@ -613,6 +620,7 @@ public final class List : View, Renderable {
     @Composable static func RenderItemAnimation(
         cornerRadius: CGFloat,
         forceUnanimatedItems: MutableState<Bool>,
+        listState: LazyListState,
         isDragging: Bool = false,
         isFirstInSection: Bool,
         isLastInSection: Bool,
@@ -620,7 +628,7 @@ public final class List : View, Renderable {
         animatedModifier: Modifier,
         content: @Composable (Modifier, Modifier) -> Void
     ) {
-        let animate = !forceUnanimatedItems.value && !suppressAnimation.value
+        let animate = !forceUnanimatedItems.value && !suppressAnimation.value && !listState.isScrollInProgress
         let modifier = animate ? animatedModifier : Modifier
         let topRadius = animateDpAsState(targetValue: isFirstInSection ? cornerRadius.dp : 0.dp, animationSpec: animate ? spring() : snap()).value
         let bottomRadius = animateDpAsState(targetValue: isLastInSection ? cornerRadius.dp : 0.dp, animationSpec: animate ? spring() : snap()).value
